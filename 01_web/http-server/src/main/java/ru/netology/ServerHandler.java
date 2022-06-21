@@ -1,42 +1,59 @@
 package ru.netology;
 
 import java.io.*;
-import java.net.ServerSocket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 
 public class ServerHandler implements Runnable {
-    private ServerSocket serverSocket;
     final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html",
             "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
+    private final BufferedReader in;
+    private final BufferedOutputStream out;
 
-    public ServerHandler(ServerSocket serverSocket) throws IOException {
-        this.serverSocket = serverSocket;
+    public ServerHandler(BufferedReader in, BufferedOutputStream out) {
+        this.in = in;
+        this.out = out;
     }
 
     @Override
     public void run() {
         while (true) {
-            try (
-                    final var socket = serverSocket.accept();
-                    final var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    final var out = new BufferedOutputStream(socket.getOutputStream())
-            ) {
-                // read only request line for simplicity
-                // must be in form GET /path HTTP/1.1
-                final var requestLine = in.readLine();
-                final var parts = requestLine.split(" ");
+            // read only request line for simplicity
+            // must be in form GET /path HTTP/1.1
+            final String requestLine;
+            final String[] parts;
+            final Path filePath;
+            final long length;
 
-                if (isInvalid(parts)) continue;
-                if (isInvalidPath(parts[1], out)) continue;
+            try {
+                requestLine = in.readLine();
+                System.out.println("Server: " + requestLine);
 
-                final var filePath = Path.of(".", "public", parts[1]);
+                parts = requestLine.split(" ");
+                System.out.print("Parts: ");
+                Arrays.stream(parts).forEach(System.out::println);
+
+                if (!isValid(parts)) {
+                    out.write(returnNotFound());
+                    out.flush();
+                    break;
+                }
+
+                if (!isValidPath(parts[1])) {
+                    out.write(returnNotFound());
+                    out.flush();
+                    break;
+                }
+
+                filePath = Path.of(".", "public", parts[1]);
 
                 if (isClassicCase(parts[1], filePath, out)) continue;
 
-                final var length = Files.size(filePath);
+                length = Files.size(filePath);
+
                 out.write((
                         "HTTP/1.1 200 OK\r\n" +
                                 "Content-Type: " + Files.probeContentType(filePath) + "\r\n" +
@@ -46,13 +63,10 @@ public class ServerHandler implements Runnable {
                 ).getBytes());
                 Files.copy(filePath, out);
                 out.flush();
-
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
-
     }
 
     private boolean isClassicCase(String path, Path filePath, BufferedOutputStream out) throws IOException {
@@ -79,18 +93,20 @@ public class ServerHandler implements Runnable {
         return result;
     }
 
-    private boolean isInvalidPath(String path, BufferedOutputStream out) throws IOException {
-        out.write((
+    private boolean isValidPath(String path) {
+        return validPaths.contains(path);
+    }
+
+    private boolean isValid(String[] parts) {
+        return parts.length == 3;
+    }
+
+    private byte[] returnNotFound() {
+        return (
                 "HTTP/1.1 404 Not Found\r\n" +
                         "Content-Length: 0\r\n" +
                         "Connection: close\r\n" +
                         "\r\n"
-        ).getBytes());
-        out.flush();
-        return !validPaths.contains(path);
-    }
-
-    private boolean isInvalid(String[] parts) {
-        return parts.length != 3;
+        ).getBytes();
     }
 }
