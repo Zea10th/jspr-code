@@ -10,22 +10,19 @@ import java.util.concurrent.Executors;
 
 public class Server {
     private final ServerSocket serverSocket;
-//    static final int CLIENT_CAPACITY = 64;
-//    private final ExecutorService executorService;
+    static final int CLIENT_CAPACITY = 64;
+    private final ExecutorService executorService;
 
     public Server(int port) throws IOException {
         this.serverSocket = new ServerSocket(port);
-//        this.executorService = Executors.newFixedThreadPool(CLIENT_CAPACITY);
+        this.executorService = Executors.newFixedThreadPool(CLIENT_CAPACITY);
     }
 
     public void run() {
         while (true) {
-            try (
-                    final var socket = serverSocket.accept();
-                    final var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                    final var out = new BufferedOutputStream(socket.getOutputStream())
-            ) {
-                new Thread(new ServerHandler(in, out)).start();
+            try {
+                var socket = serverSocket.accept();
+                executorService.submit(new ServerHandler(socket));
             } catch (IOException e) {
                 e.printStackTrace();
             }

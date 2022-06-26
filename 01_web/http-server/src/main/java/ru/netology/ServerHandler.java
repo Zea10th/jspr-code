@@ -1,6 +1,7 @@
 package ru.netology;
 
 import java.io.*;
+import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
@@ -10,12 +11,10 @@ import java.util.List;
 public class ServerHandler implements Runnable {
     final List<String> validPaths = List.of("/index.html", "/spring.svg", "/spring.png", "/resources.html",
             "/styles.css", "/app.js", "/links.html", "/forms.html", "/classic.html", "/events.html", "/events.js");
-    private final BufferedReader in;
-    private final BufferedOutputStream out;
+    private Socket socket;
 
-    public ServerHandler(BufferedReader in, BufferedOutputStream out) {
-        this.in = in;
-        this.out = out;
+    public ServerHandler(Socket socket) {
+        this.socket = socket;
     }
 
     @Override
@@ -28,7 +27,9 @@ public class ServerHandler implements Runnable {
             final Path filePath;
             final long length;
 
-            try {
+            try (var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                 var out = new BufferedOutputStream(socket.getOutputStream())
+            ) {
                 requestLine = in.readLine();
                 System.out.println("Server: " + requestLine);
 
