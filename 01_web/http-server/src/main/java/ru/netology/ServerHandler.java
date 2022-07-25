@@ -27,9 +27,10 @@ public class ServerHandler implements Runnable {
             final Path filePath;
             final long length;
 
-            try (var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
-                 var out = new BufferedOutputStream(socket.getOutputStream())
-            ) {
+            try {
+                var in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                var out = new BufferedOutputStream(socket.getOutputStream());
+
                 requestLine = in.readLine();
                 System.out.println("Server: " + requestLine);
 
